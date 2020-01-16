@@ -114,6 +114,8 @@ func (d *Driver) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest)
 		return &csi.DeleteVolumeResponse{}, err
 	}
 
+	delete(d.volumes, req.VolumeId)
+
 	log.Info("volume was deleted")
 	return &csi.DeleteVolumeResponse{}, nil
 }
