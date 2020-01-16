@@ -1,0 +1,9 @@
+# Default values for csi-zfs.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+csidriver:
+  api: storage.k8s.io/v1beta1
+  name: duni.csi.zfs.com
+
+imageName: duni/csi-zfs-plugin:test

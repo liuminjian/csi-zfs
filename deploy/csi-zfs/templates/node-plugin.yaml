@@ -1,0 +1,138 @@
+########################################
+###########                 ############
+###########   Node plugin   ############
+###########                 ############
+########################################
+
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: csi-zfs-node
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: csi-zfs-node
+  template:
+    metadata:
+      labels:
+        app: csi-zfs-node
+        role: csi-zfs
+    spec:
+      priorityClassName: system-node-critical
+      serviceAccount: csi-zfs-node-sa
+      hostNetwork: true
+      containers:
+        - name: csi-node-driver-registrar
+          image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)"
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -rf /registration/duni.csi.zfs.com /registration/duni.csi.zfs.com-reg.sock"]
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+            - name: DRIVER_REG_SOCK_PATH
+              value: /var/lib/kubelet/plugins/duni.csi.zfs.com/csi.sock
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi/
+            - name: registration-dir
+              mountPath: /registration/
+        - name: csi-zfs-plugin
+          image: {{ .Values.imageName }}
+          args :
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--poolName=$(POOL_NAME)"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: POOL_NAME
+              value: test
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: pods-mount-dir
+              mountPath: /var/lib/kubelet
+              # needed so that any mounts setup inside this container are
+              # propagated back to the host machine.
+              mountPropagation: "Bidirectional"
+            - name: device-dir
+              mountPath: /dev
+            - name: ceph-config
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
+              readOnly: true
+            - name: ceph-key
+              mountPath: /etc/ceph/ceph.client.admin.keyring
+              subPath: ceph.client.admin.keyring
+              readOnly: true
+      volumes:
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: DirectoryOrCreate
+        - name: plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/duni.csi.zfs.com
+            type: DirectoryOrCreate
+        - name: pods-mount-dir
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+        - name: device-dir
+          hostPath:
+            path: /dev
+        - name: ceph-config
+          configMap:
+            name: ceph-config
+        - name: ceph-key
+          secret:
+            secretName: ceph-key
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: csi-zfs-node-sa
+  namespace: kube-system
+
+---
+
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: csi-zfs-node-driver-registrar-role
+  namespace: kube-system
+rules:
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+---
+
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: csi-zfs-node-driver-registrar-binding
+subjects:
+  - kind: ServiceAccount
+    name: csi-zfs-node-sa
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: csi-zfs-node-driver-registrar-role
+  apiGroup: rbac.authorization.k8s.io

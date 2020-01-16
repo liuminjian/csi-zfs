@@ -1,0 +1,8 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: zfs-storage
+  namespace: kube-system
+provisioner: {{ .Values.csidriver.name }}
+allowVolumeExpansion: true
+---

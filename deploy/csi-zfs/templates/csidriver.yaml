@@ -1,0 +1,7 @@
+apiVersion: {{ .Values.csidriver.api }}
+kind: CSIDriver
+metadata:
+  name: {{ .Values.csidriver.name }}
+spec:
+  attachRequired: true
+  podInfoOnMount: true
