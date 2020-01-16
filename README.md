@@ -1,4 +1,4 @@
-# csi-zfs 
+# csi-zfs [![Build Status](https://travis-ci.org/liuminjian/csi-zfs.svg?branch=master)](https://travis-ci.org/liuminjian/csi-zfs)
 这是个k8s的csi插件，后台用ceph提供块存储，挂载的时候使用zfs，使pod容器可以方便使用zfs的压缩和快照功能，
 支持ceph和zfs的动态扩容，目前快照功能还没和VolumeSnapshot整合。
 主要参考了csi-digitalocean的代码，https://github.com/digitalocean/csi-digitalocean。
